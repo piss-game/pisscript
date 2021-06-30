@@ -1,0 +1,15 @@
+tub a
+fill a with 1
+
+tub a
+fill b with 2
+
+pour b into a
+
+tub message
+fill message with "1 + 2 = "
+
+measure a
+stick a onto message
+
+ejaculate message
