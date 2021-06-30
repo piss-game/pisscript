@@ -84,7 +84,13 @@ class TokenStream:
                 # end
                 return Token(token_type, match, self.ln)
 
-        raise PSSyntaxError(f"Unexpected token {repr(next_string[0])}", self.ln)
+        hint = None
+        unmatched_token = next_string[0]
+
+        if unmatched_token == '"':
+            hint = "Unterminated string literal?"
+
+        raise PSSyntaxError(f"Unexpected token {repr(unmatched_token)}" + (f" ({hint})" if hint else ""), self.ln)
 
     def _consume_string(self, string):
         for i in range(len(string)):
@@ -130,8 +136,10 @@ class Statement:
         self.args = args
         self.line = line
     
-    def get_arg(self, n):
+    def get_arg(self, n, if_missing=None):
         if n >= len(self.args):
+            if if_missing:
+                raise PSRuntimeError(if_missing, self.line)
             return None
         return self.args[n]
 
@@ -221,10 +229,12 @@ class PisscriptRuntime:
             error = err
         finally:
             if error_type:
+                line_preview = self.source.text.split("\n")[error.ln-1].strip()
+
                 print(f"\033[91m{self.source.source_file}:{error.ln}")
                 print(f"{error_type}: {error.msg}")
-                print(" | "+self.source.text.split("\n")[error.ln-1].strip())
-                print("   ^^^^")
+                print(" | "+line_preview)
+                print("   "+"^"*len(line_preview))
                 print("that's kinda mungus moment if u ask me ඞ\033[0m")
     
     def _assert_token_type(self, token, type):
@@ -235,6 +245,18 @@ class PisscriptRuntime:
         if not name in self.tubs:
             self.throw_runtime_err(f"No Tub exists with name {repr(name)}")
         return self.tubs[name]
+    
+    def resolve_value(self, token):
+        if token.type == "name":
+            return self.resolve_tub(token.content).value
+        elif token.type == "verb":
+            self.throw_runtime_err(f"Unexpected keyword {repr(token.content)} (Cannot resolve value)")
+        elif token.type == "number":
+            return float(token.content)
+        elif token.type == "string":
+            return token.content
+        else:
+            self.throw_runtime_err(f"Cannot resolve expression value of token {repr(token.content)}")
 
     def _run(self):
         self.parser.parse()
@@ -245,23 +267,71 @@ class PisscriptRuntime:
             self.ln = inst.line
 
             if inst.verb == "tub":
-                name_token = inst.get_arg(0)
-                if name_token is None:
-                    self.throw_runtime_err("Expected Tub name")
-                
+                name_token = inst.get_arg(0, "Expected Tub name")
                 self._assert_token_type(name_token, "name")
-
                 self.add_tub(name_token.content)
             
             if inst.verb == "ejaculate":
-                load = inst.get_arg(0)
-                if load is None:
-                    self.throw_runtime_err("Expected expression (need something to ejaculate!)")
+                load = inst.get_arg(0, "Expected value (need something to ejaculate!)")
                 
-                if load.type == "name":
-                    print(self.resolve_tub(load.content).value)
-                else:
-                    print(load.content)
+                print(self.resolve_value(load))
+            
+            if inst.verb == "fill":
+                target_token = inst.get_arg(0, "Expected Tub name")
+                with_token = inst.get_arg(1, "Expected 'with'")
+                fill_token = inst.get_arg(2, "Expected value")
+
+                target_tub = self.resolve_tub(target_token.content)
+                if with_token.content != "with":
+                    self.throw_runtime_err("Expected 'with'")
+                fill_value = self.resolve_value(fill_token)
+
+                target_tub.set_val(fill_value)
+            
+            if inst.verb == "pour":
+                value_token = inst.get_arg(0, "Expected value")
+                into_token = inst.get_arg(1, "Expected 'into'")
+                target_token = inst.get_arg(2, "Expected Tub")
+
+                target_tub = self.resolve_tub(target_token.content)
+
+                if target_tub.type == "string":
+                    self.throw_runtime_err("Cannot pour into Tub containing Words")
+
+                if into_token.content != "into":
+                    self.throw_runtime_err("Expected 'into'")
+                pour_value = self.resolve_value(value_token)
+
+                if type(pour_value) == str:
+                    self.throw_runtime_err("Cannot pour Words into Tub")
+
+                if value_token.type == "name":
+                    self.resolve_tub(value_token.content).set_val(0)
+                
+                target_tub.set_val(target_tub.value + pour_value)
+            
+            if inst.verb == "measure":
+                target_token = inst.get_arg(0, "Expected Tub")
+
+                target_tub = self.resolve_tub(target_token.content)
+
+                if target_tub.type == "string":
+                    self.throw_runtime_err("Cannnot measure Tub containing Words")
+                
+                target_tub.set_val(str(target_tub.value))
+
+            if inst.verb == "stick":
+                appendage = self.resolve_value(inst.get_arg(0, "Expected Words"))
+                onto = inst.get_arg(1, "Expected 'onto'")
+                target = self.resolve_tub(inst.get_arg(2, "Expected Tub").content)
+
+                if onto.content != "onto":
+                    self.throw_runtime_err("Expected 'onto'")
+                if type(appendage) != str:
+                    self.throw_runtime_err("Cannot append Number to Words")
+
+                target.set_val(target.value + appendage)
+
 
             self.program_counter+=1
 

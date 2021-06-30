@@ -7,7 +7,19 @@
 Pisscript, at its core, is a scripting language about bodily fluids. If, as it may be for many immature programmers,
 this is too much to handle, you are welcome to choose a different language.
 
-## `Hello World`
+### Features
+- Fully dynamic typing
+- As many variables as you want
+- Arithmetic operations
+
+### Benefits
+- Uses exclusively heap memory. Why have RAM if you're not gonna use it?
+- Interpreted language running in an interpreted language. Runs faster than ever.
+- Modern syntax built for the 21st century. Whatever that means.
+- Better than Javascript. At least, according to most people.
+- Piss. Haha piss.
+
+## Hello World
 
 ```python
 ejaculate "Hello, World!"

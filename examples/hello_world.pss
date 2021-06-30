@@ -1,1 +1,7 @@
 ejaculate "Hello, world!"
+
+tub a
+fill a with 1
+ejaculate a
+pour a into a
+ejaculate a
