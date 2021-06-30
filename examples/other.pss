@@ -1,7 +1,7 @@
 tub a
 fill a with 1
 
-tub a
+tub b
 fill b with 2
 
 pour b into a

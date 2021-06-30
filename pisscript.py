@@ -77,6 +77,10 @@ class TokenStream:
                 if token_type == "string" and "\n" in match:
                     raise PSSyntaxError("Unterminated string literal", self.ln)
 
+                # remove quotes from string
+                if token_type == "string":
+                    match = match[1:-1]
+                
                 # end
                 return Token(token_type, match, self.ln)
 
@@ -227,6 +231,11 @@ class PisscriptRuntime:
         if token.type != type:
             self.throw_runtime_err(f"Expected token of type {repr(type)}, found token {repr(token.content)}")
 
+    def resolve_tub(self, name):
+        if not name in self.tubs:
+            self.throw_runtime_err(f"No Tub exists with name {repr(name)}")
+        return self.tubs[name]
+
     def _run(self):
         self.parser.parse()
         self.instructions = self.parser.instructions
@@ -243,6 +252,16 @@ class PisscriptRuntime:
                 self._assert_token_type(name_token, "name")
 
                 self.add_tub(name_token.content)
+            
+            if inst.verb == "ejaculate":
+                load = inst.get_arg(0)
+                if load is None:
+                    self.throw_runtime_err("Expected expression (need something to ejaculate!)")
+                
+                if load.type == "name":
+                    print(self.resolve_tub(load.content).value)
+                else:
+                    print(load.content)
 
             self.program_counter+=1
 
